@@ -168,6 +168,8 @@ function resetForm() {
 // ============================================
 // โหลดและแสดงโพสต์
 // ============================================
+const postsCache = new Map(); // id -> post
+
 async function loadPosts() {
   const feed = document.getElementById("feed");
 
@@ -190,9 +192,13 @@ async function loadPosts() {
   }
 
   if (!data || data.length === 0) {
+    postsCache.clear();
     feed.innerHTML = '<div class="status">ยังไม่มีโพสต์ มาเป็นคนแรกกัน!</div>';
     return;
   }
+
+  postsCache.clear();
+  data.forEach((p) => postsCache.set(p.id, p));
 
   feed.innerHTML = data.map(renderPost).join("");
   attachLightboxListeners();
@@ -201,6 +207,7 @@ async function loadPosts() {
 function renderPost(post) {
   const initial = (post.student_name || "?").charAt(0).toUpperCase();
   const timeAgo = formatTimeAgo(post.created_at);
+  const edited = post.updated_at && post.updated_at !== post.created_at;
   const images = Array.isArray(post.image_urls) ? post.image_urls : [];
   const imageCount = Math.min(images.length, 3);
 
@@ -225,19 +232,196 @@ function renderPost(post) {
     : "";
 
   return `
-    <article class="card">
+    <article class="card" data-post-id="${escapeHtml(post.id)}">
       <div class="post-header">
         <div class="avatar">${escapeHtml(initial)}</div>
-        <div>
+        <div style="flex:1;">
           <div class="post-name">${escapeHtml(post.student_name || "ไม่ระบุชื่อ")}</div>
-          <div class="post-time">${timeAgo}</div>
+          <div class="post-time">${timeAgo}${edited ? " · แก้ไขแล้ว" : ""}</div>
+        </div>
+        <div class="post-actions">
+          <button type="button" class="icon-btn edit-btn" data-action="edit" title="แก้ไข">✏️</button>
+          <button type="button" class="icon-btn delete-btn" data-action="delete" title="ลบ">🗑️</button>
         </div>
       </div>
-      <div class="post-content">${escapeHtml(post.content || "")}</div>
-      ${promptHtml}
-      ${imagesHtml}
+      <div class="post-body">
+        <div class="post-content">${escapeHtml(post.content || "")}</div>
+        ${promptHtml}
+        ${imagesHtml}
+      </div>
     </article>
   `;
+}
+
+function renderEditForm(post) {
+  return `
+    <div class="edit-form">
+      <div class="field">
+        <label>ชื่อ-นามสกุล / เลขที่</label>
+        <input type="text" data-edit="student_name" value="${escapeHtml(post.student_name || "")}" maxlength="100" />
+      </div>
+      <div class="field">
+        <label>Prompt ที่ใช้</label>
+        <input type="text" data-edit="prompt_used" value="${escapeHtml(post.prompt_used || "")}" maxlength="300" />
+      </div>
+      <div class="field">
+        <label>เนื้อหา</label>
+        <textarea data-edit="content" maxlength="2000">${escapeHtml(post.content || "")}</textarea>
+      </div>
+      <div class="edit-actions">
+        <button type="button" class="btn-secondary" data-action="cancel-edit">ยกเลิก</button>
+        <button type="button" class="btn-primary" data-action="save-edit">บันทึก</button>
+      </div>
+    </div>
+  `;
+}
+
+// ============================================
+// Edit / Delete handlers (event delegation)
+// ============================================
+document.getElementById("feed").addEventListener("click", async (e) => {
+  const btn = e.target.closest("[data-action]");
+  if (!btn) return;
+  const article = btn.closest("[data-post-id]");
+  if (!article) return;
+  const postId = article.dataset.postId;
+  const action = btn.dataset.action;
+
+  if (action === "edit") {
+    enterEditMode(article, postId);
+  } else if (action === "cancel-edit") {
+    exitEditMode(article, postId);
+  } else if (action === "save-edit") {
+    await saveEdit(article, postId, btn);
+  } else if (action === "delete") {
+    await deletePost(article, postId, btn);
+  }
+});
+
+function enterEditMode(article, postId) {
+  const post = postsCache.get(postId);
+  if (!post) return;
+  const body = article.querySelector(".post-body");
+  body.innerHTML = renderEditForm(post);
+  // hide edit/delete buttons during edit
+  article.querySelector(".post-actions").style.display = "none";
+  body.querySelector('[data-edit="content"]').focus();
+}
+
+function exitEditMode(article, postId) {
+  const post = postsCache.get(postId);
+  if (!post) return;
+  const body = article.querySelector(".post-body");
+  const images = Array.isArray(post.image_urls) ? post.image_urls : [];
+  const imageCount = Math.min(images.length, 3);
+  const imagesHtml =
+    imageCount > 0
+      ? `<div class="post-images count-${imageCount}">
+          ${images
+            .slice(0, 3)
+            .map(
+              (url) =>
+                `<img src="${escapeHtml(url)}" alt="รูปประกอบ" loading="lazy" data-full="${escapeHtml(url)}" />`
+            )
+            .join("")}
+        </div>`
+      : "";
+  const promptHtml = post.prompt_used
+    ? `<div class="post-prompt">
+        <div class="post-prompt-label">Prompt ที่ใช้</div>
+        ${escapeHtml(post.prompt_used)}
+      </div>`
+    : "";
+  body.innerHTML = `
+    <div class="post-content">${escapeHtml(post.content || "")}</div>
+    ${promptHtml}
+    ${imagesHtml}
+  `;
+  article.querySelector(".post-actions").style.display = "";
+  attachLightboxListeners();
+}
+
+async function saveEdit(article, postId, btn) {
+  const body = article.querySelector(".post-body");
+  const newName = body.querySelector('[data-edit="student_name"]').value.trim();
+  const newPrompt = body.querySelector('[data-edit="prompt_used"]').value.trim();
+  const newContent = body.querySelector('[data-edit="content"]').value.trim();
+
+  if (!newName || !newContent) {
+    showAlert("error", "ชื่อและเนื้อหาห้ามว่าง");
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = "กำลังบันทึก...";
+
+  const updates = {
+    student_name: newName,
+    prompt_used: newPrompt || null,
+    content: newContent,
+  };
+
+  // ลองเซ็ต updated_at ถ้ามี column นี้ (จะ fallback ถ้า column ไม่มี)
+  const { data, error } = await db
+    .from("posts")
+    .update(updates)
+    .eq("id", postId)
+    .select()
+    .single();
+
+  if (error) {
+    showAlert("error", "บันทึกไม่สำเร็จ: " + error.message);
+    btn.disabled = false;
+    btn.textContent = "บันทึก";
+    return;
+  }
+
+  // อัปเดต cache + re-render ทั้ง article
+  postsCache.set(postId, data);
+  const newHtml = renderPost(data);
+  const tmp = document.createElement("div");
+  tmp.innerHTML = newHtml.trim();
+  article.replaceWith(tmp.firstChild);
+  attachLightboxListeners();
+  showAlert("success", "แก้ไขสำเร็จ");
+}
+
+async function deletePost(article, postId, btn) {
+  if (!confirm("ลบโพสต์นี้แน่นะ?")) return;
+
+  btn.disabled = true;
+
+  // ลบรูปออกจาก storage ก่อน (ถ้ามี)
+  const post = postsCache.get(postId);
+  if (post && Array.isArray(post.image_urls) && post.image_urls.length > 0) {
+    const paths = post.image_urls
+      .map((url) => {
+        const m = url.match(/\/post-images\/(.+)$/);
+        return m ? m[1] : null;
+      })
+      .filter(Boolean);
+    if (paths.length > 0) {
+      await db.storage.from(STORAGE_BUCKET).remove(paths);
+    }
+  }
+
+  const { error } = await db.from("posts").delete().eq("id", postId);
+
+  if (error) {
+    showAlert("error", "ลบไม่สำเร็จ: " + error.message);
+    btn.disabled = false;
+    return;
+  }
+
+  postsCache.delete(postId);
+  article.remove();
+  showAlert("success", "ลบโพสต์แล้ว");
+
+  // ถ้าไม่เหลือโพสต์เลย แสดงข้อความ
+  const feed = document.getElementById("feed");
+  if (feed.querySelectorAll("[data-post-id]").length === 0) {
+    feed.innerHTML = '<div class="status">ยังไม่มีโพสต์ มาเป็นคนแรกกัน!</div>';
+  }
 }
 
 // ============================================
