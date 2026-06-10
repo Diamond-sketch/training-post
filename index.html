@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>โพสต์ผลงาน AI Prompt - ห้องเรียน</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <header>
+    <div class="header-inner">
+      <img src="logo.webp" alt="Miracle Life Coach" class="logo-img" />
+      <div class="header-text">
+        <div class="header-title">โพสต์ผลงาน AI</div>
+        <div class="header-sub">แชร์ผลงานจากการฝึก Prompt</div>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+    <div id="configWarning" class="config-warning" style="display:none;">
+      <strong>ยังไม่ได้ตั้งค่า Supabase</strong>
+      เปิดไฟล์ <code>config.js</code> แล้วใส่ URL กับ anon key ของ Supabase ก่อนใช้งาน
+    </div>
+
+    <!-- Composer (form) -->
+    <section class="card composer">
+      <h2>โพสต์ผลงานของคุณ</h2>
+      <div id="alertArea"></div>
+
+      <form id="postForm">
+        <div class="field">
+          <label for="studentName">ชื่อ-นามสกุล / เลขที่</label>
+          <input type="text" id="studentName" placeholder="เช่น สมชาย ใจดี เลขที่ 12" required maxlength="100" />
+        </div>
+
+        <div class="field">
+          <label for="promptUsed">Prompt ที่ใช้ (ไม่บังคับ)</label>
+          <input type="text" id="promptUsed" placeholder="เช่น เขียนเรื่องสั้นเกี่ยวกับ..." maxlength="300" />
+        </div>
+
+        <div class="field">
+          <label for="content">เล่าผลงาน / สิ่งที่ได้เรียนรู้</label>
+          <textarea id="content" placeholder="อธิบายผลงานหรือสิ่งที่ได้จากการลอง prompt..." required maxlength="2000"></textarea>
+        </div>
+
+        <div class="field">
+          <label>รูปภาพ (สูงสุด 3 รูป)</label>
+          <div class="image-row">
+            <label class="image-slot" data-slot="0">
+              <input type="file" accept="image/*" />
+              <div class="placeholder"><span class="icon">+</span>เพิ่มรูป</div>
+              <button type="button" class="remove-btn" aria-label="ลบรูป">×</button>
+            </label>
+            <label class="image-slot" data-slot="1">
+              <input type="file" accept="image/*" />
+              <div class="placeholder"><span class="icon">+</span>เพิ่มรูป</div>
+              <button type="button" class="remove-btn" aria-label="ลบรูป">×</button>
+            </label>
+            <label class="image-slot" data-slot="2">
+              <input type="file" accept="image/*" />
+              <div class="placeholder"><span class="icon">+</span>เพิ่มรูป</div>
+              <button type="button" class="remove-btn" aria-label="ลบรูป">×</button>
+            </label>
+          </div>
+        </div>
+
+        <button type="submit" class="submit-btn" id="submitBtn">โพสต์</button>
+      </form>
+    </section>
+
+    <!-- Feed -->
+    <section id="feed">
+      <div class="status">กำลังโหลดโพสต์...</div>
+    </section>
+  </main>
+
+  <div class="lightbox" id="lightbox">
+    <img id="lightboxImg" alt="" />
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
