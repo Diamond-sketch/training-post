@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>โพสต์วิดีโอ AI - ห้องเรียน</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <header>
+    <div class="header-inner">
+      <img src="logo.webp" alt="Miracle Life Coach" class="logo-img" />
+      <div class="header-text">
+        <div class="header-title">โพสต์วิดีโอ AI</div>
+        <div class="header-sub">แชร์คลิป 15-30 วินาที</div>
+      </div>
+    </div>
+    <nav class="page-nav">
+      <a href="index.html">โพสต์รูป</a>
+      <a href="video.html" class="active">โพสต์วิดีโอ</a>
+    </nav>
+  </header>
+
+  <main class="container">
+    <div id="configWarning" class="config-warning" style="display:none;">
+      <strong>ยังไม่ได้ตั้งค่า Supabase</strong>
+      เปิดไฟล์ <code>config.js</code> แล้วใส่ URL กับ anon key ของ Supabase ก่อนใช้งาน
+    </div>
+
+    <section class="card composer">
+      <h2>อัปโหลดวิดีโอของคุณ</h2>
+      <div id="alertArea"></div>
+
+      <form id="videoForm">
+        <div class="field">
+          <label for="studentName">ชื่อ-นามสกุล</label>
+          <input type="text" id="studentName" placeholder="เช่น สมชาย ใจดี" required maxlength="100" />
+        </div>
+
+        <div class="field">
+          <label for="caption">คำบรรยายสั้น</label>
+          <input type="text" id="caption" placeholder="เล่าสั้นๆ ว่าเกี่ยวกับอะไร" maxlength="200" />
+        </div>
+
+        <div class="field">
+          <label>วิดีโอ (15-30 วินาที, สูงสุด 50MB)</label>
+          <label class="video-slot" id="videoSlot">
+            <input type="file" id="videoFile" accept="video/*" />
+            <div class="placeholder">
+              <span class="icon">▶</span>
+              <span>เลือกวิดีโอ</span>
+              <span class="hint">รองรับ MP4, MOV, WebM</span>
+            </div>
+            <video class="preview" controls playsinline></video>
+            <button type="button" class="remove-btn" id="removeVideoBtn" aria-label="ลบวิดีโอ">×</button>
+            <div class="duration-badge" id="durationBadge"></div>
+          </label>
+        </div>
+
+        <button type="submit" class="submit-btn" id="submitBtn">โพสต์</button>
+      </form>
+    </section>
+
+    <section id="feed">
+      <div class="status">กำลังโหลดวิดีโอ...</div>
+    </section>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config.js"></script>
+  <script src="video.js"></script>
+</body>
+</html>
