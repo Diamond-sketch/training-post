@@ -19,9 +19,6 @@ if (isConfigured) {
 // ค่าคงที่
 // ============================================
 const VIDEO_BUCKET = "post-videos";
-const MIN_DURATION = 15;
-const MAX_DURATION = 30;
-const MAX_FILE_MB = 50;
 
 let selectedVideo = null;     // File ที่ผู้ใช้เลือก
 let selectedDuration = 0;     // วินาที
@@ -44,41 +41,26 @@ videoFileInput.addEventListener("change", async (e) => {
   const file = e.target.files[0];
   if (!file) return;
 
-  if (file.size > MAX_FILE_MB * 1024 * 1024) {
-    showAlert("error", `ไฟล์ใหญ่เกิน ${MAX_FILE_MB}MB กรุณาเลือกไฟล์เล็กกว่านี้`);
-    videoFileInput.value = "";
-    return;
-  }
-
   try {
     const { duration, url } = await loadVideoMetadata(file);
-
-    if (duration < MIN_DURATION || duration > MAX_DURATION) {
-      showAlert(
-        "error",
-        `วิดีโอต้องยาว ${MIN_DURATION}-${MAX_DURATION} วินาที (ของคุณยาว ${duration.toFixed(1)} วินาที)`
-      );
-      durationBadge.textContent = `${duration.toFixed(1)}s`;
-      durationBadge.classList.add("invalid");
-      // ยังให้เห็น preview แต่กดโพสต์ไม่ได้
-      selectedVideo = null;
-      selectedDuration = 0;
-      previewVideo.src = url;
-      videoSlot.classList.add("has-video");
-      return;
-    }
 
     selectedVideo = file;
     selectedDuration = duration;
     previewVideo.src = url;
     videoSlot.classList.add("has-video");
-    durationBadge.textContent = `${duration.toFixed(1)}s`;
+    durationBadge.textContent = formatDuration(duration);
     durationBadge.classList.remove("invalid");
     clearAlert();
   } catch (err) {
     console.error(err);
-    showAlert("error", "อ่านไฟล์วิดีโอไม่สำเร็จ ลองไฟล์อื่น");
-    videoFileInput.value = "";
+    // ถ้าอ่าน metadata ไม่ได้ ก็ยังให้โพสต์ได้อยู่ดี
+    selectedVideo = file;
+    selectedDuration = 0;
+    previewVideo.src = URL.createObjectURL(file);
+    videoSlot.classList.add("has-video");
+    durationBadge.textContent = "";
+    durationBadge.classList.remove("invalid");
+    clearAlert();
   }
 });
 
@@ -174,7 +156,7 @@ form.addEventListener("submit", async (e) => {
     return;
   }
   if (!selectedVideo) {
-    showAlert("error", `กรุณาเลือกวิดีโอ ${MIN_DURATION}-${MAX_DURATION} วินาที`);
+    showAlert("error", "กรุณาเลือกวิดีโอ");
     return;
   }
 
@@ -189,7 +171,7 @@ form.addEventListener("submit", async (e) => {
       student_name: studentName,
       caption: caption || null,
       video_url: videoUrl,
-      duration_seconds: Math.round(selectedDuration * 10) / 10,
+      duration_seconds: selectedDuration > 0 ? Math.round(selectedDuration * 10) / 10 : null,
     });
 
     if (insertError) throw insertError;
@@ -247,9 +229,7 @@ async function loadVideos() {
 function renderVideo(v) {
   const initial = (v.student_name || "?").charAt(0).toUpperCase();
   const timeAgo = formatTimeAgo(v.created_at);
-  const durationLabel = v.duration_seconds
-    ? `${Number(v.duration_seconds).toFixed(1)}s`
-    : "";
+  const durationLabel = v.duration_seconds ? formatDuration(v.duration_seconds) : "";
 
   const captionHtml = v.caption
     ? `<div class="post-content">${escapeHtml(v.caption)}</div>`
@@ -329,6 +309,14 @@ function escapeHtml(str) {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#039;");
+}
+
+function formatDuration(seconds) {
+  if (!seconds || !isFinite(seconds)) return "";
+  const total = Math.round(seconds);
+  const m = Math.floor(total / 60);
+  const s = total % 60;
+  return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
 function formatTimeAgo(dateStr) {
